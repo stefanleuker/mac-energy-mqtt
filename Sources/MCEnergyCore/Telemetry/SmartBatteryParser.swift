@@ -5,9 +5,9 @@ import Foundation
 public enum SmartBatteryParser {
     public static func systemPower(from properties: [String: Any]) -> SystemPower? {
         guard let telemetry = properties["PowerTelemetryData"] as? [String: Any],
-              let systemPowerIn = milliwatts(telemetry["SystemPowerIn"]) else { return nil }
+              let systemLoad = milliwatts(telemetry["SystemLoad"]) else { return nil }
         return SystemPower(
-            systemPowerIn: systemPowerIn,
+            systemLoad: systemLoad,
             adapterEfficiencyLoss: milliwatts(telemetry["AdapterEfficiencyLoss"]) ?? 0,
             batteryPower: milliwatts(telemetry["BatteryPower"]) ?? 0
         )

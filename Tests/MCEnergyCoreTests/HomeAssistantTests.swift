@@ -7,7 +7,7 @@ final class HomeAssistantTests: XCTestCase {
 
     private var macMiniSample: PowerSample {
         PowerSample(timestamp: Date(), soc: SoCPower(cpu: 1, gpu: 0.5, ane: 0, dram: 0.2),
-                    system: SystemPower(systemPowerIn: 3.379, adapterEfficiencyLoss: 0.484, batteryPower: 0),
+                    system: SystemPower(systemLoad: 3.379, adapterEfficiencyLoss: 0.484, batteryPower: 0),
                     battery: nil, energyKWh: 0.1234567)
     }
 
@@ -29,6 +29,7 @@ final class HomeAssistantTests: XCTestCase {
         XCTAssertEqual(payload["unit_of_measurement"] as? String, "W")
         XCTAssertEqual(payload["device_class"] as? String, "power")
         XCTAssertEqual(payload["state_class"] as? String, "measurement")
+        XCTAssertEqual(payload["suggested_display_precision"] as? Int, 1)
         XCTAssertEqual(payload["availability_topic"] as? String, "mcenergy/deepsea/status")
         let deviceInfo = payload["device"] as? [String: Any]
         XCTAssertEqual(deviceInfo?["identifiers"] as? [String], ["mcenergy_deepsea", "SER123"])
@@ -42,6 +43,7 @@ final class HomeAssistantTests: XCTestCase {
         XCTAssertEqual(payload["payload_on"] as? String, "ON")
         XCTAssertEqual(payload["payload_off"] as? String, "OFF")
         XCTAssertNil(payload["unit_of_measurement"])
+        XCTAssertNil(payload["suggested_display_precision"])
     }
 
     func testAvailableSensorsSkipBatteryOnMacMini() {

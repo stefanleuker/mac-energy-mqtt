@@ -19,15 +19,16 @@ public struct SoCPower: Codable, Equatable, Sendable {
 
 /// Whole-machine power in watts, refreshed by the PMU roughly once a minute.
 public struct SystemPower: Codable, Equatable, Sendable {
-    /// Power drawn by the whole system from adapter and/or battery.
-    public var systemPowerIn: Double
+    /// Power consumed by the whole system, whether fed from the adapter or the battery.
+    /// (`SystemLoad`; the neighbouring `SystemPowerIn` is adapter input only and reads 0 on battery.)
+    public var systemLoad: Double
     /// Losses inside the power adapter or internal supply.
     public var adapterEfficiencyLoss: Double
     /// Positive while charging, negative while discharging.
     public var batteryPower: Double
 
-    public init(systemPowerIn: Double, adapterEfficiencyLoss: Double, batteryPower: Double) {
-        self.systemPowerIn = systemPowerIn
+    public init(systemLoad: Double, adapterEfficiencyLoss: Double, batteryPower: Double) {
+        self.systemLoad = systemLoad
         self.adapterEfficiencyLoss = adapterEfficiencyLoss
         self.batteryPower = batteryPower
     }

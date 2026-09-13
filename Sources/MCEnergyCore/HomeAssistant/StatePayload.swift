@@ -12,7 +12,7 @@ public enum StatePayload {
             state["soc_power"] = watts(soc.total)
         }
         if let system = sample.system {
-            state["system_power"] = watts(system.systemPowerIn)
+            state["system_power"] = watts(system.systemLoad)
             state["adapter_loss"] = watts(system.adapterEfficiencyLoss)
             state["battery_power"] = watts(system.batteryPower)
         }

@@ -20,6 +20,7 @@ public enum DiscoveryConfig {
         if let stateClass = sensor.stateClass { payload["state_class"] = stateClass }
         if let icon = sensor.icon { payload["icon"] = icon }
         if let category = sensor.entityCategory { payload["entity_category"] = category }
+        if let precision = sensor.displayPrecision { payload["suggested_display_precision"] = precision }
         if sensor.component == .binarySensor {
             payload["payload_on"] = "ON"
             payload["payload_off"] = "OFF"

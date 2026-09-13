@@ -12,7 +12,7 @@ No root, no third-party dependencies: one Swift binary reads IOKit and IOReport 
 | CPU, GPU, Neural Engine, Memory, SoC Power | IOReport "Energy Model" counters | real time | all |
 | Battery Level, Cycles, Charging, External Power, Adapter Rated Power | `AppleSmartBattery` | every sample | with battery |
 
-Battery Power is positive while charging and negative while discharging.
+System Power is what the machine consumes, on battery as well as on mains. Battery Power is positive while charging and negative while discharging.
 
 ## Build and deploy
 

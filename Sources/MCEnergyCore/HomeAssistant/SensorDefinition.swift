@@ -20,6 +20,8 @@ public struct SensorDefinition: Equatable, Sendable {
     public var stateClass: String?
     public var icon: String?
     public var entityCategory: String?
+    /// Decimals Home Assistant shows; without it HA rounds watts to integers and sub-watt SoC values read 0.
+    public var displayPrecision: Int? = nil
 
     /// Every entity mcenergy can offer. Which ones get announced depends on the machine.
     public static let all: [SensorDefinition] = [
@@ -32,7 +34,7 @@ public struct SensorDefinition: Equatable, Sendable {
         power("ane_power", "Neural Engine Power", .soc),
         power("dram_power", "Memory Power", .soc),
         SensorDefinition(key: "energy", name: "Energy", component: .sensor, requirement: .energy,
-                         unit: "kWh", deviceClass: "energy", stateClass: "total_increasing", icon: nil, entityCategory: nil),
+                         unit: "kWh", deviceClass: "energy", stateClass: "total_increasing", icon: nil, entityCategory: nil, displayPrecision: 3),
         SensorDefinition(key: "battery_level", name: "Battery Level", component: .sensor, requirement: .battery,
                          unit: "%", deviceClass: "battery", stateClass: "measurement", icon: nil, entityCategory: nil),
         SensorDefinition(key: "cycle_count", name: "Battery Cycles", component: .sensor, requirement: .battery,
@@ -58,6 +60,6 @@ public struct SensorDefinition: Equatable, Sendable {
 
     private static func power(_ key: String, _ name: String, _ requirement: Requirement, category: String? = nil) -> SensorDefinition {
         SensorDefinition(key: key, name: name, component: .sensor, requirement: requirement,
-                         unit: "W", deviceClass: "power", stateClass: "measurement", icon: nil, entityCategory: category)
+                         unit: "W", deviceClass: "power", stateClass: "measurement", icon: nil, entityCategory: category, displayPrecision: 1)
     }
 }

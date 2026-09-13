@@ -16,7 +16,7 @@ public final class PowerMeter: @unchecked Sendable {
         let now = Date()
         let battery = IOKitRegistry.properties(ofService: "AppleSmartBattery") ?? [:]
         let system = SmartBatteryParser.systemPower(from: battery)
-        if let watts = system?.systemPowerIn {
+        if let watts = system?.systemLoad {
             accumulator?.add(watts: watts, at: now)
         }
         return PowerSample(
