@@ -19,12 +19,40 @@ System Power is what the machine consumes, on battery as well as on mains. Batte
 ```sh
 swift build -c release -Xswiftc -Osize
 strip .build/release/mcenergy
+codesign --force --sign "Developer ID Application" .build/release/mcenergy
 install -m 755 .build/release/mcenergy ~/.local/bin/mcenergy
 ```
 
 The same binary runs on every Apple Silicon Mac with a matching or newer macOS.
 Use `install(1)` or `mv`, never `cp` over a running binary: macOS kills processes whose
 executable was modified in place, including the next `mcenergy` invocation.
+
+### Sign with a stable identity
+
+The keychain grants access to the password per code signature. `swift build` signs ad hoc, and every
+rebuild gets a new signature, so each deployed binary blocks on a keychain dialog on every Mac until
+someone clicks "Always Allow" on that screen. Signing with the same identity every time avoids that:
+after one approval, rebuilt binaries are trusted. Any identity works, including a self-signed one:
+
+1. Keychain Access → Keychain Access menu → Certificate Assistant → Create a Certificate.
+2. Name `mcenergy`, Identity Type "Self Signed Root", Certificate Type "Code Signing".
+3. Sign with `codesign --force --sign mcenergy .build/release/mcenergy` after `strip`, never before:
+   stripping discards the signature.
+
+`security find-identity -v -p codesigning` lists the identities available for `--sign`. The target Macs
+do not need the certificate; the signature travels inside the binary. The first start of a binary
+signed with a new identity still needs one approval on each Mac, or a fresh `mcenergy install` there.
+
+### Update running agents
+
+```sh
+scp .build/release/mcenergy spencer.local:.local/bin/mcenergy.new
+ssh spencer.local 'mv ~/.local/bin/mcenergy.new ~/.local/bin/mcenergy && launchctl kickstart -k gui/$(id -u)/local.mcenergy'
+ssh spencer.local 'tail -2 ~/Library/Logs/mcenergy.log'
+```
+
+A healthy restart logs `publishing <host> ...` followed by `connected to ...` within a few seconds.
+A process that stays silent is waiting in the keychain read for a dialog on that Mac's screen.
 
 Run `mcenergy install` from a terminal on the machine itself, not over SSH: an SSH session cannot
 write to the login keychain ("User interaction is not allowed").
