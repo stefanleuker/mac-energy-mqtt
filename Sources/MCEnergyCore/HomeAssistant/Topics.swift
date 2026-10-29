@@ -18,4 +18,10 @@ public struct Topics: Equatable, Sendable {
     public func discovery(for sensor: SensorDefinition) -> String {
         "\(discoveryPrefix)/\(sensor.component.rawValue)/\(topicPrefix)_\(deviceID)/\(sensor.key)/config"
     }
+
+    /// Every message mcenergy leaves retained on the broker for this device: all discovery configs plus availability.
+    /// Publishing an empty retained payload to each removes the device from Home Assistant.
+    public var retainedTopics: [String] {
+        SensorDefinition.all.map(discovery(for:)) + [availability]
+    }
 }

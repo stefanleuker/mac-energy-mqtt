@@ -70,6 +70,7 @@ mcenergy run --broker 192.168.0.78 --user mac --password secret --interval 10
 mcenergy install --broker 192.168.0.78 --user mac          # launchd agent at login, prompts for the password
 mcenergy run --broker ha.example.net --tls --user mac      # TLS on port 8883; the broker certificate must be trusted
 mcenergy uninstall
+mcenergy forget --broker 192.168.0.78 --user mac old_host_id   # drop a stale device from Home Assistant
 mcenergy completion zsh > ~/.zfunc/_mcenergy
 ```
 
@@ -100,6 +101,9 @@ mcenergy/<host>/status                                   online / offline (last 
 ```
 
 ## Notes
+
+- The device ID is the Bonjour local host name from Sharing settings (`scutil --get LocalHostName`). If it
+  changes, Home Assistant sees a new device; `mcenergy forget <old-id>` clears the retained messages of the old one.
 
 - IOReport is a private Apple library. It has been stable across many macOS releases and is what
   `powermetrics` uses, but Apple gives no guarantees.

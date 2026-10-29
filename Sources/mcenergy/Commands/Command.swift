@@ -2,7 +2,7 @@ import Foundation
 import MCEnergyCore
 
 enum Command: String, CaseIterable {
-    case measure, channels, run, install, uninstall, completion, help
+    case measure, channels, run, install, uninstall, forget, completion, help
 
     static let usage = """
     Usage: mcenergy <command> [options]
@@ -13,10 +13,11 @@ enum Command: String, CaseIterable {
       run                     Publish samples to Home Assistant over MQTT until stopped
       install                 Install a launchd agent that runs `run` at login; stores the password in the keychain
       uninstall               Remove the launchd agent and the keychain password
+      forget <device-id>...   Remove stale device IDs from Home Assistant by clearing their retained messages
       completion <shell>      Print a completion script for zsh, bash or fish
       help                    Show this help
 
-    Options for run and install:
+    Options for run, install and forget:
       --broker <host>         MQTT broker host (required)
       --port <n>              MQTT broker port (default 1883, or 8883 with --tls)
       --tls                   Connect over TLS; the broker certificate must be trusted by this Mac
@@ -47,6 +48,7 @@ enum Command: String, CaseIterable {
         case .run: try await RunCommand.run(parsed)
         case .install: try InstallCommand.install(parsed)
         case .uninstall: try InstallCommand.uninstall()
+        case .forget: try await ForgetCommand.run(parsed)
         case .completion: try CompletionCommand.run(parsed)
         case .help: Self.printHelp(parsed)
         }

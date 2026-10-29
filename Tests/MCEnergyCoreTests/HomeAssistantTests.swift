@@ -20,6 +20,15 @@ final class HomeAssistantTests: XCTestCase {
         XCTAssertEqual(topics.discovery(for: charging), "homeassistant/binary_sensor/mcenergy_deepsea/battery_charging/config")
     }
 
+    func testRetainedTopicsCoverEverySensorAndAvailability() {
+        let retained = topics.retainedTopics
+        XCTAssertEqual(retained.count, SensorDefinition.all.count + 1)
+        XCTAssertTrue(retained.contains("homeassistant/sensor/mcenergy_deepsea/cpu_power/config"))
+        XCTAssertTrue(retained.contains("homeassistant/binary_sensor/mcenergy_deepsea/external_power/config"))
+        XCTAssertEqual(retained.last, "mcenergy/deepsea/status")
+        XCTAssertFalse(retained.contains(topics.state), "state is never retained")
+    }
+
     func testDiscoveryPayloadForPowerSensor() {
         let cpu = SensorDefinition.all.first { $0.key == "cpu_power" }!
         let payload = DiscoveryConfig.payload(for: cpu, device: device, topics: topics)
