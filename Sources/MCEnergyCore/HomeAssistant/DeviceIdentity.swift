@@ -1,4 +1,5 @@
 import Foundation
+import SystemConfiguration
 
 /// Identifies this Mac towards Home Assistant.
 public struct DeviceIdentity: Equatable, Sendable {
@@ -16,13 +17,21 @@ public struct DeviceIdentity: Equatable, Sendable {
     }
 
     public static func current() -> DeviceIdentity {
-        let hostName = shortHostName(ProcessInfo.processInfo.hostName)
+        let hostName = localHostName() ?? shortHostName(ProcessInfo.processInfo.hostName)
         return DeviceIdentity(
             id: slug(hostName),
             name: Host.current().localizedName ?? hostName,
             model: sysctlString("hw.model") ?? "Mac",
             serialNumber: IOKitRegistry.platformSerialNumber()
         )
+    }
+
+    /// The Bonjour name from Sharing settings, e.g. "spencer": set by the user, stable across networks.
+    /// `ProcessInfo.hostName` is a reverse DNS lookup instead and has produced router-assigned names
+    /// like "43c42d9c-….fritz.box", which split one Mac into several Home Assistant devices.
+    private static func localHostName() -> String? {
+        guard let name = SCDynamicStoreCopyLocalHostName(nil) as String?, !name.isEmpty else { return nil }
+        return name
     }
 
     /// Strips only a trailing Bonjour `.local`, leaving names like `my.local.net` alone.
