@@ -1,7 +1,7 @@
 import Foundation
 
 /// Combines all telemetry sources into one `PowerSample`.
-public final class PowerMeter: @unchecked Sendable {
+public final class PowerMeter: PowerSampling, @unchecked Sendable {
     private let energyModel: EnergyModelReader?
     private let accumulator: EnergyAccumulator?
 

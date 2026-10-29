@@ -21,7 +21,7 @@ public enum StatePayload {
             state["cycle_count"] = battery.cycleCount
             state["battery_charging"] = onOff(battery.isCharging)
             state["external_power"] = onOff(battery.externalPowerConnected)
-            if let rated = battery.adapterRatedWatts { state["adapter_rated_power"] = rated }
+            state["adapter_rated_power"] = nullable(battery.adapterRatedWatts)
         }
         if let energy = sample.energyKWh {
             state["energy"] = rounded(energy, places: 6)
@@ -38,5 +38,10 @@ public enum StatePayload {
         NSDecimalRound(&result, &source, places, .plain)
         return result
     }
+
     private static func onOff(_ flag: Bool) -> String { flag ? "ON" : "OFF" }
+
+    /// An announced key must always be present: a missing one makes Home Assistant log a template
+    /// warning on every update, whereas JSON `null` renders as `None` and reads as "unknown".
+    private static func nullable(_ value: Int?) -> Any { value.map { $0 as Any } ?? NSNull() }
 }

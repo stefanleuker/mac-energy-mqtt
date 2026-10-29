@@ -2,8 +2,12 @@ import Foundation
 
 /// Runtime configuration shared by `run` and `install`.
 public struct Settings: Equatable, Sendable {
+    public static let plainPort: UInt16 = 1883
+    public static let tlsPort: UInt16 = 8883
+
     public var brokerHost: String
-    public var brokerPort: UInt16 = 1883
+    public var brokerPort: UInt16 = Settings.plainPort
+    public var useTLS = false
     public var username: String?
     public var password: String?
     public var intervalSeconds: Double = 10

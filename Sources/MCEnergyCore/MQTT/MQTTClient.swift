@@ -6,6 +6,12 @@ public enum MQTTError: Error, Equatable {
     case connectionRefused(returnCode: UInt8)
     case unexpectedResponse
     case notConnected
+
+    /// CONNACK codes 4 (bad user name or password) and 5 (not authorized).
+    public var isAuthenticationFailure: Bool {
+        if case .connectionRefused(let code) = self { return code == 4 || code == 5 }
+        return false
+    }
 }
 
 /// Minimal MQTT 3.1.1 publisher over Network.framework. QoS 0 only.
@@ -13,6 +19,7 @@ public actor MQTTClient {
     public struct Options: Sendable {
         public var host: String
         public var port: UInt16
+        public var useTLS = false
         public var clientID: String
         public var username: String?
         public var password: String?
@@ -42,18 +49,29 @@ public actor MQTTClient {
         self.options = options
     }
 
+    public var isConnected: Bool { connection != nil }
+
     public func connect() async throws {
         let endpoint = NWEndpoint.hostPort(host: .init(options.host), port: .init(rawValue: options.port)!)
-        let connection = NWConnection(to: endpoint, using: .tcp)
+        let connection = NWConnection(to: endpoint, using: options.useTLS ? .tls : .tcp)
         self.connection = connection
-        try await waitUntilReady(connection)
-        try await send(MQTTPacket.connect(
-            clientID: options.clientID, username: options.username, password: options.password,
-            keepAlive: options.keepAlive, will: options.will
-        ))
-        let response = try await receive(exactly: 4)
-        guard let code = MQTTPacket.connackReturnCode(response) else { throw MQTTError.unexpectedResponse }
-        guard code == 0 else { throw MQTTError.connectionRefused(returnCode: code) }
+        // The handler captures the connection; dropping it after setup breaks the retain cycle.
+        defer { connection.stateUpdateHandler = nil }
+        do {
+            try await waitUntilReady(connection)
+            try await send(MQTTPacket.connect(
+                clientID: options.clientID, username: options.username, password: options.password,
+                keepAlive: options.keepAlive, will: options.will
+            ))
+            let response = try await receive(exactly: 4)
+            guard let code = MQTTPacket.connackReturnCode(response) else { throw MQTTError.unexpectedResponse }
+            guard code == 0 else { throw MQTTError.connectionRefused(returnCode: code) }
+        } catch {
+            connection.cancel()
+            self.connection = nil
+            throw error
+        }
+        watchForClose(connection)
     }
 
     public func publish(topic: String, payload: Data, retain: Bool = false) async throws {
@@ -67,8 +85,18 @@ public actor MQTTClient {
     }
 
     /// `waiting` is not treated as failure: Network.framework retries by itself once the path becomes
-    /// viable, which is what happens after the user grants Local Network access. The timeout bounds it.
+    /// viable, which is what happens after the user grants Local Network access. The timeout bounds it,
+    /// and cancelling the task cancels the connection so shutdown never waits for the timeout.
     private func waitUntilReady(_ connection: NWConnection) async throws {
+        try await withTaskCancellationHandler {
+            try await awaitReadyState(connection)
+        } onCancel: {
+            connection.cancel()
+        }
+        try Task.checkCancellation()
+    }
+
+    private func awaitReadyState(_ connection: NWConnection) async throws {
         let queue = DispatchQueue(label: "mcenergy.mqtt")
         let timeout = options.connectTimeout
         let onWaiting = options.onWaiting
@@ -100,6 +128,27 @@ public actor MQTTClient {
             }
             connection.start(queue: queue)
         }
+    }
+
+    /// Keeps a receive pending so a broker that closes the socket is noticed at once, not on a later send.
+    /// The broker sends nothing we asked for, so any bytes that do arrive are ignored.
+    private func watchForClose(_ connection: NWConnection) {
+        connection.receive(minimumIncompleteLength: 1, maximumLength: 4096) { [weak self] _, _, isComplete, error in
+            guard let self else { return }
+            Task {
+                if isComplete || error != nil {
+                    await self.markClosed(connection)
+                } else {
+                    await self.watchForClose(connection)
+                }
+            }
+        }
+    }
+
+    private func markClosed(_ closed: NWConnection) {
+        guard connection === closed else { return }
+        closed.cancel()
+        connection = nil
     }
 
     private func send(_ data: Data) async throws {

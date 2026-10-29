@@ -16,7 +16,7 @@ enum InstallCommand {
     static func install(_ parsed: ParsedArguments) throws {
         let keychain = KeychainStore()
         var settings = try SettingsBuilder.make(from: parsed, environment: ProcessInfo.processInfo.environment, passwordStore: keychain)
-        if settings.password == nil { settings.password = try PasswordPrompt.read() }
+        if settings.password == nil, settings.username != nil { settings.password = try PasswordPrompt.read() }
         if let password = settings.password { try keychain.store(password, for: settings.keychainAccount) }
         let plist = LaunchAgent.plist(label: label, executable: executablePath(), settings: settings, logPath: logURL.path)
         let data = try PropertyListSerialization.data(fromPropertyList: plist, format: .xml, options: 0)
@@ -41,8 +41,10 @@ enum InstallCommand {
 
     private static var domain: String { "gui/\(getuid())" }
 
+    /// `CommandLine.arguments[0]` is just "mcenergy" when started through PATH; the bundle knows the real file.
     private static func executablePath() -> String {
-        URL(fileURLWithPath: CommandLine.arguments[0]).resolvingSymlinksInPath().path
+        let url = Bundle.main.executableURL ?? URL(fileURLWithPath: CommandLine.arguments[0])
+        return url.resolvingSymlinksInPath().path
     }
 
     private static func launchctl(_ arguments: [String]) -> Int32 {

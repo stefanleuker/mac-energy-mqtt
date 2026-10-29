@@ -13,7 +13,7 @@ enum CompletionCommand {
     }
 
     private static let commands = Command.allCases.map(\.rawValue)
-    private static let options = ParsedArguments.valueOptions.sorted() + ["--help", "--version"]
+    private static let options = ParsedArguments.valueOptions.union(ParsedArguments.booleanFlags).filter { $0.hasPrefix("--") }.sorted()
 
     private static var zsh: String {
         """

@@ -17,7 +17,8 @@ System Power is what the machine consumes, on battery as well as on mains. Batte
 ## Build and deploy
 
 ```sh
-swift build -c release
+swift build -c release -Xswiftc -Osize
+strip .build/release/mcenergy
 install -m 755 .build/release/mcenergy ~/.local/bin/mcenergy
 ```
 
@@ -35,10 +36,11 @@ System Settings → Privacy & Security → Local Network.
 ## Use
 
 ```sh
-mcenergy measure                       # one sample as the JSON Home Assistant receives
+mcenergy measure                       # one sample as the JSON Home Assistant receives (without the energy total)
 mcenergy channels                      # raw IOReport channels, for diagnosing a new chip
 mcenergy run --broker 192.168.0.78 --user mac --password secret --interval 10
-mcenergy install --broker 192.168.0.78 --user mac --password secret   # launchd agent at login
+mcenergy install --broker 192.168.0.78 --user mac          # launchd agent at login, prompts for the password
+mcenergy run --broker ha.example.net --tls --user mac      # TLS on port 8883; the broker certificate must be trusted
 mcenergy uninstall
 mcenergy completion zsh > ~/.zfunc/_mcenergy
 ```
@@ -52,7 +54,9 @@ and writes `~/Library/LaunchAgents/local.mcenergy.plist` without any secret. `ru
 2. environment variable `MCENERGY_MQTT_PASSWORD`
 3. login keychain
 
-`install` without a password prompts for it on the terminal. `uninstall` removes the agent and the keychain item.
+`install` without a password prompts for it on the terminal; prefer that over `--password`, which is visible in
+`ps` and shell history. A password always needs `--user`, MQTT forbids one without a username.
+`uninstall` removes the agent and the keychain item.
 The agent logs to `~/Library/Logs/mcenergy.log`. After rebuilding the binary, run `install` again: it replaces the
 keychain item, so the new binary can read it without an access prompt.
 
@@ -72,3 +76,8 @@ mcenergy/<host>/status                                   online / offline (last 
 - IOReport is a private Apple library. It has been stable across many macOS releases and is what
   `powermetrics` uses, but Apple gives no guarantees.
 - Energy counting skips gaps longer than five minutes (sleep, downtime) rather than extrapolating.
+- Without `--tls` everything, including the password, crosses the network in plain text. Fine on a trusted LAN,
+  otherwise enable TLS on the broker and pass `--tls`.
+- When the broker rejects the credentials (CONNACK 4 or 5) the agent retries only every five minutes, so a wrong
+  password cannot trip a broker lockout.
+- `run` stops cleanly on SIGTERM or Ctrl-C: it publishes `offline` first so Home Assistant does not wait for the will.

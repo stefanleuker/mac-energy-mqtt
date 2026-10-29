@@ -83,8 +83,25 @@ final class HomeAssistantTests: XCTestCase {
         XCTAssertEqual(state["adapter_rated_power"] as? Int, 94)
     }
 
+    func testUnpluggedAdapterPublishesNullNotNothing() throws {
+        var sample = macMiniSample
+        sample.battery = BatteryStatus(levelPercent: 50, isCharging: false, externalPowerConnected: false, cycleCount: 1, adapterRatedWatts: nil)
+        let state = StatePayload.dictionary(from: sample)
+        XCTAssertTrue(state["adapter_rated_power"] is NSNull)
+        let json = String(decoding: try JSONSerialization.data(withJSONObject: state, options: [.sortedKeys]), as: UTF8.self)
+        XCTAssertTrue(json.contains("\"adapter_rated_power\":null"), json)
+    }
+
     func testSlug() {
         XCTAssertEqual(DeviceIdentity.slug("Stefan's MacBook Pro"), "stefan_s_macbook_pro")
         XCTAssertEqual(DeviceIdentity.slug("deepsea"), "deepsea")
+        XCTAssertEqual(DeviceIdentity.slug("Büro-Mac"), "b_ro_mac", "discovery IDs must be ASCII")
+        XCTAssertEqual(DeviceIdentity.slug("---"), "mac")
+    }
+
+    func testShortHostNameStripsOnlyTrailingLocal() {
+        XCTAssertEqual(DeviceIdentity.shortHostName("deepsea.local"), "deepsea")
+        XCTAssertEqual(DeviceIdentity.shortHostName("my.local.net"), "my.local.net")
+        XCTAssertEqual(DeviceIdentity.shortHostName("deepsea"), "deepsea")
     }
 }

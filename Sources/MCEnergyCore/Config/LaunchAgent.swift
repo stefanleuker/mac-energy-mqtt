@@ -23,6 +23,7 @@ public enum LaunchAgent {
             "--discovery-prefix", settings.discoveryPrefix,
             "--topic-prefix", settings.topicPrefix,
         ]
+        if settings.useTLS { arguments.append("--tls") }
         if let username = settings.username { arguments += ["--user", username] }
         return arguments
     }

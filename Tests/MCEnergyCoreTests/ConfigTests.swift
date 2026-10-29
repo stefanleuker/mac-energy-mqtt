@@ -28,7 +28,7 @@ final class ConfigTests: XCTestCase {
     }
 
     func testExplicitPasswordWinsOverEnvironment() throws {
-        let parsed = try ParsedArguments.parse(["run", "--broker", "b", "--password", "cli", "--interval", "30"])
+        let parsed = try ParsedArguments.parse(["run", "--broker", "b", "--user", "u", "--password", "cli", "--interval", "30"])
         let settings = try SettingsBuilder.make(from: parsed, environment: [Settings.passwordEnvironmentKey: "env"])
         XCTAssertEqual(settings.password, "cli")
         XCTAssertEqual(settings.intervalSeconds, 30)
@@ -62,6 +62,37 @@ final class ConfigTests: XCTestCase {
         XCTAssertEqual(try SettingsBuilder.make(from: parsed, environment: [Settings.passwordEnvironmentKey: "env"], passwordStore: store).password, "env")
         let otherUser = try ParsedArguments.parse(["run", "--broker", "b", "--user", "other"])
         XCTAssertNil(try SettingsBuilder.make(from: otherUser, environment: [:], passwordStore: store).password)
+    }
+
+    func testPasswordWithoutUserIsRejected() throws {
+        let cli = try ParsedArguments.parse(["run", "--broker", "b", "--password", "p"])
+        XCTAssertThrowsError(try SettingsBuilder.make(from: cli, environment: [:])) {
+            XCTAssertEqual($0 as? ArgumentError, .passwordRequiresUser)
+        }
+        let env = try ParsedArguments.parse(["run", "--broker", "b"])
+        XCTAssertThrowsError(try SettingsBuilder.make(from: env, environment: [Settings.passwordEnvironmentKey: "p"]))
+    }
+
+    func testStoreIsNotConsultedWithoutUser() throws {
+        let store = InMemoryPasswordStore()
+        try store.store("stale", for: "anonymous@b:1883")
+        let parsed = try ParsedArguments.parse(["run", "--broker", "b"])
+        XCTAssertNil(try SettingsBuilder.make(from: parsed, environment: [:], passwordStore: store).password)
+    }
+
+    func testTLSFlagSwitchesDefaultPortAndIsPassedToTheAgent() throws {
+        let parsed = try ParsedArguments.parse(["run", "--broker", "b", "--tls"])
+        let settings = try SettingsBuilder.make(from: parsed, environment: [:])
+        XCTAssertTrue(settings.useTLS)
+        XCTAssertEqual(settings.brokerPort, 8883)
+        XCTAssertTrue(LaunchAgent.runArguments(settings).contains("--tls"))
+
+        let explicitPort = try ParsedArguments.parse(["run", "--broker", "b", "--tls", "--port", "9999"])
+        XCTAssertEqual(try SettingsBuilder.make(from: explicitPort, environment: [:]).brokerPort, 9999)
+        let plain = try ParsedArguments.parse(["run", "--broker", "b"])
+        let plainSettings = try SettingsBuilder.make(from: plain, environment: [:])
+        XCTAssertFalse(plainSettings.useTLS)
+        XCTAssertFalse(LaunchAgent.runArguments(plainSettings).contains("--tls"))
     }
 
     func testKeychainAccountIsUniquePerBrokerAndUser() {

@@ -16,7 +16,7 @@ public struct DeviceIdentity: Equatable, Sendable {
     }
 
     public static func current() -> DeviceIdentity {
-        let hostName = ProcessInfo.processInfo.hostName.replacingOccurrences(of: ".local", with: "")
+        let hostName = shortHostName(ProcessInfo.processInfo.hostName)
         return DeviceIdentity(
             id: slug(hostName),
             name: Host.current().localizedName ?? hostName,
@@ -25,12 +25,20 @@ public struct DeviceIdentity: Equatable, Sendable {
         )
     }
 
-    /// Lowercase alphanumerics and underscores only, safe for MQTT topics and HA object IDs.
+    /// Strips only a trailing Bonjour `.local`, leaving names like `my.local.net` alone.
+    public static func shortHostName(_ hostName: String) -> String {
+        let suffix = ".local"
+        return hostName.hasSuffix(suffix) ? String(hostName.dropLast(suffix.count)) : hostName
+    }
+
+    /// Lowercase ASCII alphanumerics and underscores only: Home Assistant discovery allows nothing else
+    /// in node and object IDs. Falls back to "mac" when nothing usable remains.
     public static func slug(_ text: String) -> String {
         let mapped = text.lowercased().map { character -> Character in
-            character.isLetter || character.isNumber ? character : "_"
+            character.isASCII && (character.isLetter || character.isNumber) ? character : "_"
         }
-        return String(mapped).trimmingCharacters(in: CharacterSet(charactersIn: "_"))
+        let trimmed = String(mapped).trimmingCharacters(in: CharacterSet(charactersIn: "_"))
+        return trimmed.isEmpty ? "mac" : trimmed
     }
 
     private static func sysctlString(_ name: String) -> String? {

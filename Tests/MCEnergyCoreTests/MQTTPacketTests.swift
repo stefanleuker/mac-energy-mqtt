@@ -25,6 +25,17 @@ final class MQTTPacketTests: XCTestCase {
         XCTAssertEqual(packet.count, 2 + 10 + 3)
     }
 
+    func testPasswordWithoutUsernameIsDropped() {
+        let packet = MQTTPacket.connect(clientID: "a", username: nil, password: "secret", keepAlive: 30, will: nil)
+        XCTAssertEqual(packet, MQTTPacket.connect(clientID: "a", username: nil, password: nil, keepAlive: 30, will: nil))
+    }
+
+    func testOverlongFieldsAreTruncatedInsteadOfTrapping() {
+        let field = MQTTPacket.lengthPrefixed(Data(count: 70_000))
+        XCTAssertEqual(field.count, 2 + MQTTPacket.maxFieldLength)
+        XCTAssertEqual([UInt8](field.prefix(2)), [0xFF, 0xFF])
+    }
+
     func testPublishRetained() {
         let packet = [UInt8](MQTTPacket.publish(topic: "a/b", payload: Data("1".utf8), retain: true))
         XCTAssertEqual(packet, [0x31, 6, 0, 3, 0x61, 0x2F, 0x62, 0x31])

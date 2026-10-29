@@ -3,15 +3,19 @@ import Foundation
 public enum ArgumentError: Error, Equatable, CustomStringConvertible {
     case missingValue(String)
     case unknownOption(String)
+    case unknownCommand(String)
     case missingRequired(String)
     case invalidValue(option: String, value: String)
+    case passwordRequiresUser
 
     public var description: String {
         switch self {
         case .missingValue(let option): return "option \(option) requires a value"
         case .unknownOption(let option): return "unknown option \(option)"
+        case .unknownCommand(let command): return "unknown command \(command)"
         case .missingRequired(let option): return "missing required option \(option)"
         case .invalidValue(let option, let value): return "invalid value '\(value)' for \(option)"
+        case .passwordRequiresUser: return "a password needs --user: MQTT does not allow a password without a username"
         }
     }
 }
@@ -26,7 +30,7 @@ public struct ParsedArguments: Equatable, Sendable {
     public static let valueOptions: Set<String> = [
         "--broker", "--port", "--user", "--password", "--interval", "--discovery-prefix", "--topic-prefix", "--samples",
     ]
-    public static let booleanFlags: Set<String> = ["--help", "-h", "--version"]
+    public static let booleanFlags: Set<String> = ["--help", "-h", "--version", "--tls"]
 
     public static func parse(_ arguments: [String]) throws -> ParsedArguments {
         var parsed = ParsedArguments()

@@ -8,7 +8,7 @@ enum Command: String, CaseIterable {
     Usage: mcenergy <command> [options]
 
     Commands:
-      measure                 Print one power sample as the JSON Home Assistant receives
+      measure                 Print one power sample as the JSON Home Assistant receives (without the energy total)
       channels                List raw IOReport energy channels of this chip (diagnostics)
       run                     Publish samples to Home Assistant over MQTT until stopped
       install                 Install a launchd agent that runs `run` at login; stores the password in the keychain
@@ -18,10 +18,12 @@ enum Command: String, CaseIterable {
 
     Options for run and install:
       --broker <host>         MQTT broker host (required)
-      --port <n>              MQTT broker port (default 1883)
+      --port <n>              MQTT broker port (default 1883, or 8883 with --tls)
+      --tls                   Connect over TLS; the broker certificate must be trusted by this Mac
       --user <name>           MQTT username
       --password <secret>     MQTT password; falls back to environment \(Settings.passwordEnvironmentKey),
-                              then the login keychain, then an interactive prompt (install only)
+                              then the login keychain, then an interactive prompt (install only).
+                              Prefer the prompt: a password on the command line is visible in `ps` and shell history
       --interval <seconds>    Seconds between samples (default 10)
       --discovery-prefix <p>  Home Assistant discovery prefix (default homeassistant)
       --topic-prefix <p>      Topic prefix for state and availability (default mcenergy)
@@ -34,7 +36,7 @@ enum Command: String, CaseIterable {
         if parsed.flags.contains("--version") { return .help }
         if parsed.flags.contains("--help") || parsed.flags.contains("-h") { return .help }
         guard let name = parsed.command else { return .help }
-        guard let command = Command(rawValue: name) else { throw ArgumentError.unknownOption(name) }
+        guard let command = Command(rawValue: name) else { throw ArgumentError.unknownCommand(name) }
         return command
     }
 

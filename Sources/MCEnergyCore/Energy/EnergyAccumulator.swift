@@ -3,17 +3,22 @@ import Foundation
 /// Integrates system power over time into a monotonically increasing energy total.
 /// Persists to disk so Home Assistant's `total_increasing` statistics survive restarts.
 public final class EnergyAccumulator: @unchecked Sendable {
+    public typealias Log = @Sendable (String) -> Void
+
     private struct State: Codable {
         var wattHours: Double
         var lastTimestamp: Date?
     }
 
     private let storeURL: URL?
+    private let log: Log
     private var state: State
+    private var reportedSaveFailure = false
 
-    public init(storeURL: URL?) {
+    public init(storeURL: URL?, log: @escaping Log = { _ in }) {
         self.storeURL = storeURL
-        self.state = Self.load(from: storeURL) ?? State(wattHours: 0, lastTimestamp: nil)
+        self.log = log
+        self.state = Self.load(from: storeURL, log: log) ?? State(wattHours: 0, lastTimestamp: nil)
     }
 
     public var kilowattHours: Double { state.wattHours / 1000 }
@@ -31,14 +36,26 @@ public final class EnergyAccumulator: @unchecked Sendable {
         save()
     }
 
-    private static func load(from url: URL?) -> State? {
-        guard let url, let data = try? Data(contentsOf: url) else { return nil }
-        return try? JSONDecoder().decode(State.self, from: data)
+    /// A missing file is the normal first start; an unreadable one is worth a log line because the total restarts at 0.
+    private static func load(from url: URL?, log: Log) -> State? {
+        guard let url, FileManager.default.fileExists(atPath: url.path) else { return nil }
+        do {
+            return try JSONDecoder().decode(State.self, from: Data(contentsOf: url))
+        } catch {
+            log("energy store \(url.path) unreadable (\(error)), energy total restarts at 0")
+            return nil
+        }
     }
 
     private func save() {
         guard let storeURL, let data = try? JSONEncoder().encode(state) else { return }
-        try? FileManager.default.createDirectory(at: storeURL.deletingLastPathComponent(), withIntermediateDirectories: true)
-        try? data.write(to: storeURL, options: .atomic)
+        do {
+            try FileManager.default.createDirectory(at: storeURL.deletingLastPathComponent(), withIntermediateDirectories: true)
+            try data.write(to: storeURL, options: .atomic)
+        } catch {
+            guard !reportedSaveFailure else { return }
+            reportedSaveFailure = true
+            log("cannot save energy store \(storeURL.path): \(error)")
+        }
     }
 }

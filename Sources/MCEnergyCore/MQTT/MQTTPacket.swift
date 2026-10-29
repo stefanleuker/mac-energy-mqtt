@@ -13,6 +13,10 @@ public enum MQTTPacket {
         }
     }
 
+    /// Longest string or binary field the protocol can carry; longer input is truncated rather than trapping.
+    public static let maxFieldLength = Int(UInt16.max)
+
+    /// A password without a username is forbidden by the protocol and dropped here as a last line of defence.
     public static func connect(clientID: String, username: String?, password: String?, keepAlive: UInt16, will: Will?) -> Data {
         var flags: UInt8 = 0x02 // clean session
         var payload = Data()
@@ -25,10 +29,10 @@ public enum MQTTPacket {
         if let username {
             flags |= 0x80
             payload.append(lengthPrefixed(username))
-        }
-        if let password {
-            flags |= 0x40
-            payload.append(lengthPrefixed(password))
+            if let password {
+                flags |= 0x40
+                payload.append(lengthPrefixed(password))
+            }
         }
         var body = lengthPrefixed("MQTT")
         body.append(0x04)
@@ -44,7 +48,6 @@ public enum MQTTPacket {
         return framed(type: 0x30 | (retain ? 0x01 : 0x00), body: body)
     }
 
-    public static let pingRequest = Data([0xC0, 0x00])
     public static let disconnect = Data([0xE0, 0x00])
 
     /// Returns the CONNACK return code, or nil when the bytes are not a CONNACK.
@@ -78,8 +81,9 @@ public enum MQTTPacket {
     }
 
     static func lengthPrefixed(_ data: Data) -> Data {
-        var result = bigEndian(UInt16(data.count))
-        result.append(data)
+        let field = data.prefix(maxFieldLength)
+        var result = bigEndian(UInt16(field.count))
+        result.append(field)
         return result
     }
 
